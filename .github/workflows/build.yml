@@ -5,15 +5,42 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Install
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller python-docx openpyxl xlsxwriter markdown
+
       - name: Build
-        run: pyinstaller -n WeChatMsg --uac-admin --paths . --collect-all wxManager --collect-all exporter --add-data "exporter/resources;exporter/resources" --add-data "exporter/ffmpeg.exe;exporter" --add-data "wxManager/decrypt/version_list.json;wxManager/decrypt" wechat_tool.py
+        shell: pwsh
+        run: |
+          $pyArgs = @(
+            '-n', 'WeChatMsg',
+            '--uac-admin',
+            '--paths', '.',
+            '--collect-all', 'wxManager',
+            '--collect-all', 'exporter',
+            '--add-data', 'exporter/resources;exporter/resources',
+            '--add-data', 'exporter/ffmpeg.exe;exporter',
+            '--add-data', 'wxManager/decrypt/version_list.json;wxManager/decrypt'
+          )
+          # 只对确实装了的库加 --collect-all,避免个别库名不对导致构建失败
+          $pkgs = 'docx','dateparser','lxml','openpyxl','bs4','PIL','zstandard','lz4','yara','pysilk','pymem','Crypto','Cryptodome','google.protobuf','aiofiles','xmltodict'
+          foreach ($p in $pkgs) {
+            python -c "import $p" *> $null
+            if ($LASTEXITCODE -eq 0) {
+              $pyArgs += @('--collect-all', $p)
+              Write-Host "collect: $p"
+            } else {
+              Write-Host "skip: $p"
+            }
+          }
+          pyinstaller @pyArgs wechat_tool.py
+
       - uses: actions/upload-artifact@v4
         with:
           name: WeChatMsg-win
