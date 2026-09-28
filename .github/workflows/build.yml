@@ -1,0 +1,24 @@
+name: build-exe
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Build
+        run: |
+          $common = @('--paths', '.', '--collect-all', 'wxManager', '--collect-all', 'exporter', '--add-data', 'exporter/resources;exporter/resources', '--add-data', 'exporter/ffmpeg.exe;exporter')
+          pyinstaller -n 1-decrypt @common example/1-decrypt.py
+          pyinstaller -n 2-contact @common example/2-contact.py
+          pyinstaller -n 3-exporter @common example/3-exporter.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WeChatMsg-win
+          path: dist/
